@@ -1,6 +1,7 @@
 "use client"
 import React, { useEffect, useRef } from 'react'
-import Phaser from 'phaser'
+// Use the prebuilt Phaser bundle to avoid optional dev-only imports that break Next.js bundling
+import Phaser from 'phaser/dist/phaser.js'
 import TownScene from './game/scenes/TownScene'
 
 export default function Game() {
