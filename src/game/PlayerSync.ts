@@ -14,6 +14,7 @@ export class PlayerSync {
   private scene: Phaser.Scene
   private localId?: string
   private remotePlayers = new Map<string, RemotePlayer>()
+  private pendingCreates: Array<{ id: string; x: number; y: number; ts: number }> = []
   private sendInterval = 1000 / 15
   private sendTimer = 0
 
@@ -102,16 +103,22 @@ export class PlayerSync {
   private createOrUpdateRemote(id: string, x: number, y: number, ts: number) {
     let rp = this.remotePlayers.get(id)
     if (!rp) {
+      // If scene.add is not yet available (socket events can fire early), queue the creation and retry
+      if (!this.scene || !(this.scene as any).add) {
+        this.pendingCreates.push({ id, x, y, ts })
+        setTimeout(() => this.flushPendingCreates(), 100)
+        return
+      }
       // create a simple graphics-backed container for remote players (avoids relying on external textures)
-      const container = this.scene.add.container(x, y)
-      const g = this.scene.add.graphics()
+      const container = (this.scene as any).add.container(x, y)
+      const g = (this.scene as any).add.graphics()
       const playerColor = Phaser.Display.Color.HexStringToColor('#3498db').color
       g.fillStyle(playerColor, 1)
       g.fillRect(-12, -12, 24, 24)
       g.lineStyle(1, 0x000000, 1)
       g.strokeRect(-12, -12, 24, 24)
       container.add(g)
-      container.setSize(24, 24)
+      if (typeof container.setSize === 'function') container.setSize(24, 24)
       rp = { id, sprite: container, targetX: x, targetY: y, lastUpdate: ts }
       this.remotePlayers.set(id, rp)
     } else {
@@ -119,6 +126,12 @@ export class PlayerSync {
       rp.targetY = y
       rp.lastUpdate = ts
     }
+  }
+
+  private flushPendingCreates() {
+    if (!this.pendingCreates.length) return
+    const items = this.pendingCreates.splice(0)
+    items.forEach((it) => this.createOrUpdateRemote(it.id, it.x, it.y, it.ts))
   }
 
   update(localX: number, localY: number, time: number, delta: number) {
