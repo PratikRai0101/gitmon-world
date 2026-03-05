@@ -110,17 +110,24 @@ export class PlayerSync {
         return
       }
       // create a simple graphics-backed container for remote players (avoids relying on external textures)
-      const container = (this.scene as any).add.container(x, y)
-      const g = (this.scene as any).add.graphics()
-      const playerColor = Phaser.Display.Color.HexStringToColor('#3498db').color
-      g.fillStyle(playerColor, 1)
-      g.fillRect(-12, -12, 24, 24)
-      g.lineStyle(1, 0x000000, 1)
-      g.strokeRect(-12, -12, 24, 24)
-      container.add(g)
-      if (typeof container.setSize === 'function') container.setSize(24, 24)
-      rp = { id, sprite: container, targetX: x, targetY: y, lastUpdate: ts }
-      this.remotePlayers.set(id, rp)
+      try {
+        const container = (this.scene as any).add.container(x, y)
+        const g = (this.scene as any).add.graphics()
+        const playerColor = Phaser.Display.Color.HexStringToColor('#3498db').color
+        g.fillStyle(playerColor, 1)
+        g.fillRect(-12, -12, 24, 24)
+        g.lineStyle(1, 0x000000, 1)
+        g.strokeRect(-12, -12, 24, 24)
+        container.add(g)
+        if (typeof container.setSize === 'function') container.setSize(24, 24)
+        rp = { id, sprite: container, targetX: x, targetY: y, lastUpdate: ts }
+        this.remotePlayers.set(id, rp)
+      } catch (err) {
+        // if creation fails for any reason, queue and retry later to avoid runtime crash
+        this.pendingCreates.push({ id, x, y, ts })
+        setTimeout(() => this.flushPendingCreates(), 200)
+        return
+      }
     } else {
       rp.targetX = x
       rp.targetY = y
