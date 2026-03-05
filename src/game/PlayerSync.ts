@@ -3,7 +3,7 @@ import Phaser from 'phaser/dist/phaser.js'
 
 export type RemotePlayer = {
   id: string
-  sprite: Phaser.GameObjects.Sprite
+  sprite: any
   targetX: number
   targetY: number
   lastUpdate: number
@@ -102,9 +102,17 @@ export class PlayerSync {
   private createOrUpdateRemote(id: string, x: number, y: number, ts: number) {
     let rp = this.remotePlayers.get(id)
     if (!rp) {
-      const sprite = this.scene.add.sprite(x, y, 'player-32')
-      sprite.setOrigin(0.5, 0.5)
-      rp = { id, sprite, targetX: x, targetY: y, lastUpdate: ts }
+      // create a simple graphics-backed container for remote players (avoids relying on external textures)
+      const container = this.scene.add.container(x, y)
+      const g = this.scene.add.graphics()
+      const playerColor = Phaser.Display.Color.HexStringToColor('#3498db').color
+      g.fillStyle(playerColor, 1)
+      g.fillRect(-12, -12, 24, 24)
+      g.lineStyle(1, 0x000000, 1)
+      g.strokeRect(-12, -12, 24, 24)
+      container.add(g)
+      container.setSize(24, 24)
+      rp = { id, sprite: container, targetX: x, targetY: y, lastUpdate: ts }
       this.remotePlayers.set(id, rp)
     } else {
       rp.targetX = x
