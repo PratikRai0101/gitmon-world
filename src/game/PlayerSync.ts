@@ -1,5 +1,5 @@
 import { io, Socket } from 'socket.io-client'
-import Phaser from 'phaser'
+import Phaser from 'phaser/dist/phaser.js'
 
 export type RemotePlayer = {
   id: string

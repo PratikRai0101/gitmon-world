@@ -1,4 +1,4 @@
-import Phaser from 'phaser'
+import Phaser from 'phaser/dist/phaser.js'
 import { PlayerSync } from '../PlayerSync'
 
 export default class TownScene extends Phaser.Scene {
