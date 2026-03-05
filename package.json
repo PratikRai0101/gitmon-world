@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "game-server": "ts-node server/playerSync.ts"
   },
   "dependencies": {
     "next": "13.5.6",
