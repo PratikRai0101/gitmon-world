@@ -21,8 +21,19 @@ export default function TrainerCardHost() {
       lst.forEach((k: string) => (map[k] = true))
       setOnlineMap(map)
     }
+    function onStatusChange(e: any) {
+      const d = e.detail
+      const uname = d?.username || d?.owner_username || null
+      if (!uname) return
+      setOnlineMap((m) => ({ ...m, [uname]: d.status === 'online' }))
+    }
     window.addEventListener('gitmon:players', onPlayersUpdate as EventListener)
-    return () => window.removeEventListener('gitmon:inspect', onInspect as EventListener)
+    window.addEventListener('gitmon:status_change', onStatusChange as EventListener)
+    return () => {
+      window.removeEventListener('gitmon:inspect', onInspect as EventListener)
+      window.removeEventListener('gitmon:players', onPlayersUpdate as EventListener)
+      window.removeEventListener('gitmon:status_change', onStatusChange as EventListener)
+    }
   }, [])
 
   if (!open || !payload) return null

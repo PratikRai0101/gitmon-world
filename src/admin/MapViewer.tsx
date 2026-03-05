@@ -31,6 +31,7 @@ export default function MapViewer({ plots }: { plots: Plot[] }) {
   const [plotsState, setPlotsState] = useState<Plot[]>(plots || [])
   const [animating, setAnimating] = useState<Record<number, boolean>>({})
   const [feed, setFeed] = useState<string[]>([])
+  const [onlineMap, setOnlineMap] = useState<Record<string, boolean>>({})
   const tileSize = 32
 
   // initialize center so (0,0) is centered
@@ -88,10 +89,23 @@ export default function MapViewer({ plots }: { plots: Plot[] }) {
         const key = nextAnimKey()
         setAnimating((a) => ({ ...a, [key]: true }))
         setTimeout(() => setAnimating((a) => { const copy = { ...a }; delete copy[key]; return copy }), 3000)
-      pushFeed(`${username} spawned a ${top_language ?? 'Unknown'} ${building_type} at [${x}, ${y}]`)
+        pushFeed(`${username} spawned a ${top_language ?? 'Unknown'} ${building_type} at [${x}, ${y}]`)
       } catch (e) {
         console.warn('player:stats handler error', e)
       }
+    })
+
+    // listen for status changes and update plot/online map
+    socket.on('player:status_change', (payload: any) => {
+      try {
+        const uname = payload.username || payload.owner_username || null
+        if (!uname) return
+        setOnlineMap((m) => ({ ...m, [uname]: payload.status === 'online' }))
+        // update plotsState directly to reflect online dot on map
+        setPlotsState((prev) => prev.map((p) => (p.owner_username === uname ? { ...p, online: payload.status === 'online' } : p)))
+        // broadcast window event for other components
+        try { window.dispatchEvent(new CustomEvent('gitmon:status_change', { detail: payload })) } catch (e) {}
+      } catch (e) { console.warn('player:status_change handler', e) }
     })
 
     // admin players list for online presence

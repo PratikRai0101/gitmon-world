@@ -76,16 +76,19 @@ export default class TownScene extends Phaser.Scene {
     // listen for proximity checks to show/hide interaction prompt
     this.events.on('player:checkProximity', ({ hasPlot, plot }: any) => {
       if (hasPlot) {
-        // show a small 'Press E to Inspect' prompt
+        // show a small 'Press E to Inspect' prompt with fade-in
         if (!(this as any).inspectPrompt) {
           const txt = this.add.text(400, 40, 'Press E to Inspect', { font: '14px monospace', color: '#fff', backgroundColor: 'rgba(0,0,0,0.7)', padding: { x: 6, y: 4 } })
           txt.setOrigin(0.5, 0)
           txt.setDepth(50)
+          txt.alpha = 0
+          this.tweens.add({ targets: txt, alpha: 1, duration: 180, ease: 'Power1' })
           ;(this as any).inspectPrompt = txt
         }
       } else {
         if ((this as any).inspectPrompt) {
-          ;(this as any).inspectPrompt.destroy()
+          const old = (this as any).inspectPrompt
+          this.tweens.add({ targets: old, alpha: 0, duration: 160, ease: 'Power1', onComplete: () => { try { old.destroy() } catch (e) {} } })
           ;(this as any).inspectPrompt = null
         }
       }
