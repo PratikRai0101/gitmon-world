@@ -27,10 +27,13 @@ export class PlayerSync {
 
     this.socket.on('players:init', (states: Array<{ id: string; x: number; y: number; timestamp: number }>) => {
       states.forEach((s) => this.createOrUpdateRemote(s.id, s.x, s.y, s.timestamp))
+      // inform the scene about initial players
+      try { this.scene.events.emit('players:init', states) } catch (e) {}
     })
 
     this.socket.on('player:joined', ({ id }: { id: string }) => {
       this.createOrUpdateRemote(id, 0, 0, Date.now())
+      try { this.scene.events.emit('player:joined', { id }) } catch (e) {}
     })
 
     // other clients may announce a move intent
@@ -57,6 +60,19 @@ export class PlayerSync {
         this.remotePlayers.delete(id)
       }
     })
+  }
+
+  // return a snapshot of known players with tile coords
+  getKnownPlayers() {
+    const out: Array<{ id: string; tileX: number; tileY: number; x: number; y: number }> = []
+    this.remotePlayers.forEach((rp, id) => {
+      const x = rp.sprite.x
+      const y = rp.sprite.y
+      const tileX = Math.round(x / 32)
+      const tileY = Math.round(y / 32)
+      out.push({ id, tileX, tileY, x, y })
+    })
+    return out
   }
 
   private createOrUpdateRemote(id: string, x: number, y: number, ts: number) {
@@ -86,6 +102,14 @@ export class PlayerSync {
       rp.sprite.x += (rp.targetX - rp.sprite.x) * smoothing
       rp.sprite.y += (rp.targetY - rp.sprite.y) * smoothing
     })
+  }
+
+  // Emit a move intent/target to the server so other clients can interpolate
+  emitMove(tileX: number, tileY: number, x?: number, y?: number) {
+    const payload: any = { tileX, tileY, timestamp: Date.now() }
+    if (typeof x === 'number') payload.x = x
+    if (typeof y === 'number') payload.y = y
+    this.socket.emit('player:move', payload)
   }
 
   destroy() {
