@@ -33,6 +33,18 @@ export class PlayerSync {
       this.createOrUpdateRemote(id, 0, 0, Date.now())
     })
 
+    // other clients may announce a move intent
+    this.socket.on('player:move', (state: { id: string; x: number; y: number; tileX?: number; tileY?: number; timestamp: number }) => {
+      if (state.id === this.localId) return
+      // create or update remote with target tiles
+      this.createOrUpdateRemote(state.id, state.x, state.y, state.timestamp)
+      const rp = this.remotePlayers.get(state.id)
+      if (rp && typeof state.tileX === 'number' && typeof state.tileY === 'number') {
+        rp.targetX = state.tileX * 32
+        rp.targetY = state.tileY * 32
+      }
+    })
+
     this.socket.on('player:update', (state: { id: string; x: number; y: number; timestamp: number }) => {
       if (state.id === this.localId) return
       this.createOrUpdateRemote(state.id, state.x, state.y, state.timestamp)

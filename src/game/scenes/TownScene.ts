@@ -18,6 +18,9 @@ export default class TownScene extends Phaser.Scene {
     this.player = this.add.sprite(100, 100, 'player-32')
     this.cursors = this.input.keyboard.createCursorKeys()
     this.sync = new PlayerSync(this, 'http://localhost:4000')
+    // wire a PlayerController for grid movement
+    // @ts-ignore
+    this.playerController = new (require('../PlayerController').default)(this, this.player, this.sync)
   }
 
   update(time: number, delta: number) {
@@ -32,5 +35,8 @@ export default class TownScene extends Phaser.Scene {
     this.player.y += vy * (delta / 1000)
 
     this.sync.update(this.player.x, this.player.y, time, delta)
+    // update player controller if present
+    // @ts-ignore
+    if (this.playerController) this.playerController.update(time, delta)
   }
 }

@@ -6,6 +6,8 @@ type PlayerState = {
   id: string
   x: number
   y: number
+  tileX?: number
+  tileY?: number
   dir?: string
   timestamp: number
 }
@@ -29,8 +31,16 @@ io.on('connection', (socket: Socket) => {
 
   socket.on('player:update', (state: Omit<PlayerState, 'id'>) => {
     const playerState: PlayerState = { id, ...state }
-    players.set(id, playerState)
+    players.set(id, { ...(players.get(id) || {}), ...playerState })
     socket.broadcast.emit('player:update', playerState)
+  })
+
+  socket.on('player:move', (data: { tileX: number; tileY: number; x?: number; y?: number; timestamp: number }) => {
+    const x = typeof data.x === 'number' ? data.x : data.tileX * 32
+    const y = typeof data.y === 'number' ? data.y : data.tileY * 32
+    const playerState: PlayerState = { id, x, y, tileX: data.tileX, tileY: data.tileY, timestamp: data.timestamp }
+    players.set(id, { ...(players.get(id) || {}), ...playerState })
+    socket.broadcast.emit('player:move', playerState)
   })
 
   socket.on('disconnect', () => {
