@@ -56,6 +56,8 @@ export default function MapViewer({ plots }: { plots: Plot[] }) {
       pushFeed(`Admin connected to live updates (socket ${socket.id})`)
       // request current plots state from server
       socket.emit('admin:requestPlots')
+      // also request the current players list for online presence
+      socket.emit('admin:requestPlayers')
     })
 
     // when a player identifies / server assigns a plot it emits player:stats
@@ -86,10 +88,16 @@ export default function MapViewer({ plots }: { plots: Plot[] }) {
         const key = nextAnimKey()
         setAnimating((a) => ({ ...a, [key]: true }))
         setTimeout(() => setAnimating((a) => { const copy = { ...a }; delete copy[key]; return copy }), 3000)
-        pushFeed(`${username} spawned a ${top_language ?? 'Unknown'} ${building_type} at [${x}, ${y}]`)
+      pushFeed(`${username} spawned a ${top_language ?? 'Unknown'} ${building_type} at [${x}, ${y}]`)
       } catch (e) {
         console.warn('player:stats handler error', e)
       }
+    })
+
+    // admin players list for online presence
+    socket.on('admin:players', (players: any[]) => {
+      // broadcast window event so TrainerCardHost can pick it up
+      try { window.dispatchEvent(new CustomEvent('gitmon:players', { detail: players })) } catch (e) {}
     })
 
     socket.on('player:identify', (payload: any) => {

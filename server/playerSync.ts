@@ -146,6 +146,16 @@ io.on('connection', (socket: Socket) => {
       socket.emit('admin:allPlots:error', { message: String(err) })
     }
   })
+  // Admin: request current player list (id, username)
+  socket.on('admin:requestPlayers', async () => {
+    try {
+      const out = Array.from(players.values()).map((p) => ({ id: p.id, username: p.username }))
+      socket.emit('admin:players', out)
+    } catch (err: any) {
+      console.error('admin:requestPlayers error', err)
+      socket.emit('admin:players:error', { message: String(err) })
+    }
+  })
   // NOTE: test-identify hook removed — use 'player:identify' with a mock or GitHub username for testing
 })
 

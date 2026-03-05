@@ -8,9 +8,11 @@ type Props = {
   topLanguage?: string
   stars?: number
   onClose?: () => void
+  online?: boolean
+  linkedinUrl?: string | null
 }
 
-export default function TrainerCard({ username, avatarUrl, topLanguage, stars, onClose }: Props) {
+export default function TrainerCard({ username, avatarUrl, topLanguage, stars, onClose, online, linkedinUrl }: Props) {
   const langColor = topLanguage ? (topLanguage.toLowerCase().includes('python') ? '#2ECC71' : topLanguage.toLowerCase().includes('javascript') ? '#FFD43B' : topLanguage.toLowerCase().includes('rust') ? '#DE6A31' : '#888') : '#888'
   return (
     <div className="trainer-card tw-trainer" style={{ width: 340 }}>
@@ -30,9 +32,14 @@ export default function TrainerCard({ username, avatarUrl, topLanguage, stars, o
             <div style={{ marginTop: 8, fontSize: 12, color: '#9ca3af' }}>Stars: {stars ?? 0}</div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+        <div style={{ display: 'flex', gap: 8, marginTop: 12, alignItems: 'center' }}>
           <button style={{ padding: '8px 12px', background: '#111827', border: '1px solid rgba(0,0,0,0.6)', color: '#fff' }} onClick={onClose}>Close</button>
-          <a href={`https://github.com/${username}`} target="_blank" rel="noreferrer" style={{ padding: '8px 12px', background: '#065f46', border: '1px solid rgba(0,0,0,0.6)', color: '#fff', textDecoration: 'none' }}>View Profile</a>
+          <a href={`https://github.com/${username}`} target="_blank" rel="noreferrer" style={{ padding: '8px 12px', background: '#065f46', border: '1px solid rgba(0,0,0,0.6)', color: '#fff', textDecoration: 'none' }}>Visit GitHub</a>
+          <a href={linkedinUrl || `https://www.linkedin.com/in/${username}`} target="_blank" rel="noreferrer" style={{ padding: '8px 12px', background: '#0e76a8', border: '1px solid rgba(0,0,0,0.6)', color: '#fff', textDecoration: 'none' }}>View LinkedIn</a>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 10, height: 10, borderRadius: 999, background: online ? '#16a34a' : '#6b7280', boxShadow: online ? '0 0 8px rgba(34,197,94,0.6)' : 'none' }} />
+            <div style={{ fontSize: 12, color: '#9ca3af' }}>{online ? 'Online' : 'Offline'}</div>
+          </div>
         </div>
       </div>
     </div>
