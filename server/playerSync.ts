@@ -2,6 +2,42 @@ import http from 'http'
 import express from 'express'
 import { Server as IOServer, Socket } from 'socket.io'
 import { fetchGitStats } from './github'
+import { Pool } from 'pg'
+
+// Database pool (configure using env var DATABASE_URL)
+const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+
+async function findPlotByOwner(username: string) {
+  const res = await pool.query('SELECT * FROM plots WHERE owner_username = $1 LIMIT 1', [username])
+  return res.rows[0]
+}
+
+async function savePlot(username: string, x: number, y: number, building_type: string, top_language?: string) {
+  const res = await pool.query(
+    `INSERT INTO plots (owner_username, x, y, building_type, top_language, last_updated)
+     VALUES ($1,$2,$3,$4,$5,now())
+     ON CONFLICT (owner_username) DO UPDATE SET x=EXCLUDED.x, y=EXCLUDED.y, building_type=EXCLUDED.building_type, top_language=EXCLUDED.top_language, last_updated=now()
+     RETURNING *`,
+    [username, x, y, building_type, top_language]
+  )
+  return res.rows[0]
+}
+
+async function findNearestEmptyPlot(size = 3, maxRadius = 50) {
+  // naive search spiraling out from 0,0 looking for free area (no existing plots overlap)
+  for (let r = 0; r <= maxRadius; r++) {
+    for (let dx = -r; dx <= r; dx++) {
+      for (let dy = -r; dy <= r; dy++) {
+        const x = dx * size
+        const y = dy * size
+        // check overlap
+        const q = await pool.query('SELECT 1 FROM plots WHERE x BETWEEN $1-$3 AND $1+$3 AND y BETWEEN $2-$3 AND $2+$3 LIMIT 1', [x, y, size - 1])
+        if (q.rowCount === 0) return { x, y }
+      }
+    }
+  }
+  return null
+}
 
 type PlayerState = {
   id: string
@@ -56,12 +92,32 @@ io.on('connection', (socket: Socket) => {
   socket.on('player:identify', async ({ username }: { username: string }) => {
     try {
       const stats = await fetchGitStats(username)
+      // check the DB for existing plot
+      const saved = await findPlotByOwner(username)
+      let plotX = saved?.x
+      let plotY = saved?.y
+      const building_type = saved?.building_type || (stats.totalCommits > 500 ? 'mansion' : stats.totalCommits >= 100 ? 'house' : 'cottage')
+      if (!plotX && !plotY) {
+        // assign nearest empty plot sized by building_type
+        const size = building_type === 'mansion' ? 3 : building_type === 'house' ? 2 : 1
+        const spot = await findNearestEmptyPlot(size)
+        if (spot) {
+          plotX = spot.x
+          plotY = spot.y
+          await savePlot(username, plotX, plotY, building_type, stats.topLanguage)
+        } else {
+          // fallback spawn near origin
+          plotX = 0
+          plotY = 0
+        }
+      }
+
       const existing = players.get(id) || ({} as PlayerState)
-      const playerState: PlayerState = { id, x: existing.x || 0, y: existing.y || 0, timestamp: Date.now(), username, stats }
+      const playerState: PlayerState = { id, x: plotX || (existing.x || 0), y: plotY || (existing.y || 0), timestamp: Date.now(), username, stats }
       players.set(id, { ...existing, ...playerState })
-      // broadcast the stats to all clients
-      io.emit('player:stats', { id, username, stats })
-      console.log('identified', id, username, stats)
+      // broadcast the stats and assigned plot to all clients
+      io.emit('player:stats', { id, username, stats, x: playerState.x, y: playerState.y })
+      console.log('identified', id, username, stats, 'plot:', playerState.x, playerState.y)
     } catch (err: any) {
       console.error('identify error', err)
       socket.emit('player:stats:error', { message: String(err) })
