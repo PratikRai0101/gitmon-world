@@ -13,6 +13,9 @@ export type GitStats = {
   totalCommits: number
   topLanguage?: string
   stars: number
+  bio?: string | null
+  company?: string | null
+  avatarUrl?: string | null
 }
 
 const TTL = 1000 * 60 * 60 // 1 hour
@@ -41,6 +44,9 @@ export async function fetchGitStats(username: string): Promise<GitStats> {
       repositories(first:100, ownerAffiliations:OWNER){
         nodes { stargazerCount primaryLanguage { name } }
       }
+      bio
+      company
+      avatarUrl
     }
   }`
 
@@ -58,8 +64,7 @@ export async function fetchGitStats(username: string): Promise<GitStats> {
     langCounts[name] = (langCounts[name] || 0) + 1
   })
   const topLanguage = Object.entries(langCounts).sort((a, b) => (b[1] as number) - (a[1] as number))[0]?.[0]
-
-  const out: GitStats = { totalCommits, topLanguage, stars }
+  const out: GitStats = { totalCommits, topLanguage, stars, bio: user.bio ?? null, company: user.company ?? null, avatarUrl: user.avatarUrl ?? null }
   cache.set(username, { ts: now, value: out })
   return out
 }

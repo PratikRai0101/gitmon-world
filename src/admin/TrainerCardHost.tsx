@@ -18,9 +18,13 @@ export default function TrainerCardHost() {
 
   if (!open || !payload) return null
   const username = payload.owner_username || payload.username || 'unknown'
+  // attempt to lookup cached stats from server side via window.__INITIAL_PLOTS or rely on payload
+  const avatar = payload.avatarUrl || payload.avatar_url || payload.avatar || null
+  const topLang = payload.top_language ?? payload.topLanguage ?? payload.stats?.topLanguage ?? null
+  const stars = payload.stars ?? payload.stats?.stars ?? 0
   return (
     <div style={{ position: 'fixed', left: 24, bottom: 24, zIndex: 9999 }}>
-      <TrainerCard username={username} topLanguage={payload.top_language ?? payload.topLanguage} stars={payload.stars ?? 0} onClose={() => setOpen(false)} />
+      <TrainerCard username={username} avatarUrl={avatar} topLanguage={topLang} stars={stars} onClose={() => setOpen(false)} />
     </div>
   )
 }
