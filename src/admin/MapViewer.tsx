@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useRef, useEffect, useState } from 'react'
+import { io, Socket } from 'socket.io-client'
 
 type Plot = {
   id: number
@@ -20,12 +21,16 @@ const languageToColor: Record<string, string> = {
 
 export default function MapViewer({ plots }: { plots: Plot[] }) {
   const svgRef = useRef<SVGSVGElement | null>(null)
+  const socketRef = useRef<Socket | null>(null)
   const [scale, setScale] = useState(1)
   const [tx, setTx] = useState(0)
   const [ty, setTy] = useState(0)
   const [isPanning, setIsPanning] = useState(false)
   const panStart = useRef<{ x: number; y: number } | null>(null)
   const [hoverInfo, setHoverInfo] = useState<{ x: number; y: number; info: string } | null>(null)
+  const [plotsState, setPlotsState] = useState<Plot[]>(plots || [])
+  const [animating, setAnimating] = useState<Record<number, boolean>>({})
+  const [feed, setFeed] = useState<string[]>([])
   const tileSize = 32
 
   // initialize center so (0,0) is centered
@@ -36,6 +41,62 @@ export default function MapViewer({ plots }: { plots: Plot[] }) {
     const h = svg.clientHeight
     setTx(w / 2)
     setTy(h / 2)
+  }, [])
+
+  // setup socket connection for live updates
+  useEffect(() => {
+    const socket = io((typeof window !== 'undefined' && window.location.hostname) ? `http://${window.location.hostname}:4000` : 'http://localhost:4000', { transports: ['websocket'] })
+    socketRef.current = socket
+
+    function pushFeed(msg: string) {
+      setFeed((f) => [msg, ...f].slice(0, 50))
+    }
+
+    socket.on('connect', () => {
+      pushFeed(`Admin connected to live updates (socket ${socket.id})`)
+    })
+
+    // when a player identifies / server assigns a plot it emits player:stats
+    socket.on('player:stats', (payload: any) => {
+      try {
+        const username = payload.username || payload.owner_username || 'unknown'
+        const stats = payload.stats || {}
+        const x = typeof payload.x === 'number' ? payload.x : (payload.plotX ?? payload.x ?? 0)
+        const y = typeof payload.y === 'number' ? payload.y : (payload.plotY ?? payload.y ?? 0)
+        // determine building type from commits (mirror server logic)
+        const commits = stats.totalCommits ?? 0
+        const building_type = commits > 500 ? 'mansion' : commits >= 100 ? 'house' : 'cottage'
+        const top_language = stats.topLanguage ?? stats.top_language ?? null
+
+        // update or add plot
+        setPlotsState((prev) => {
+          const found = prev.find((p) => p.owner_username === username)
+          if (found) {
+            const updated = prev.map((p) => p.owner_username === username ? { ...p, x, y, building_type, top_language } : p)
+            return updated
+          }
+          const nextId = (prev.reduce((m, r) => Math.max(m, r.id || 0), 0) || 0) + 1
+          const newPlot: Plot = { id: nextId, owner_username: username, x, y, building_type, top_language, totalCommits: commits }
+          return [newPlot, ...prev]
+        })
+
+        // animate the plot briefly
+        setAnimating((a) => ({ ...a, [username?.toString().length ?? Math.random() * 1000]: true }))
+        pushFeed(`${username} spawned a ${top_language ?? 'Unknown'} ${building_type} at [${x}, ${y}]`)
+      } catch (e) {
+        console.warn('player:stats handler error', e)
+      }
+    })
+
+    socket.on('player:identify', (payload: any) => {
+      const username = payload?.username || 'unknown'
+      pushFeed(`${username} started identify flow`)
+    })
+
+    return () => {
+      socket.disconnect()
+      socketRef.current = null
+    }
   }, [])
 
   // wheel to zoom
@@ -106,7 +167,7 @@ export default function MapViewer({ plots }: { plots: Plot[] }) {
     flyRef.current = requestAnimationFrame(step)
   }
 
-  const latest = [...plots].sort((a, b) => (new Date(b.last_updated ?? 0).getTime() - new Date(a.last_updated ?? 0).getTime())).slice(0, 10)
+  const latest = [...plotsState].slice(0, 10)
 
   return (
     <div style={{ display: 'flex', gap: 12 }}>
@@ -121,14 +182,16 @@ export default function MapViewer({ plots }: { plots: Plot[] }) {
             )}
 
             {/* plots */}
-            {plots.map((p) => {
+            {plotsState.map((p) => {
               const size = p.building_type === 'mansion' ? 3 : p.building_type === 'house' ? 2 : 1
               const color = p.top_language ? languageToColor[p.top_language.toLowerCase()] || '#888' : '#888'
               const px = p.x * tileSize
               const py = p.y * tileSize
               return (
                 <g key={p.id} transform={`translate(${px},${py})`}>
-                  <rect x={0} y={0} width={size * tileSize} height={size * tileSize} fill={color} stroke="#000" strokeWidth={1} />
+                  <g style={{ transformOrigin: '0 0', transition: 'transform 400ms ease, opacity 400ms ease', transform: animating[p.id] ? 'scale(0.85)' : 'scale(1)', opacity: animating[p.id] ? 0.0 : 1 }}>
+                    <rect x={0} y={0} width={size * tileSize} height={size * tileSize} fill={color} stroke="#000" strokeWidth={1} />
+                  </g>
                 </g>
               )
             })}
@@ -147,6 +210,14 @@ export default function MapViewer({ plots }: { plots: Plot[] }) {
             </li>
           ))}
         </ul>
+        <div style={{ position: 'absolute', bottom: 8, left: 8, right: 8 }}>
+          <h4 style={{ margin: '6px 0 4px' }}>Live Feed</h4>
+          <div style={{ maxHeight: 160, overflow: 'hidden', display: 'flex', flexDirection: 'column-reverse', gap: 6 }}>
+            {feed.map((f, i) => (
+              <div key={i} style={{ fontSize: 12, color: '#9ae6b4', background: 'rgba(0,0,0,0.4)', padding: '6px', borderRadius: 4, opacity: 0.95 }}>{f}</div>
+            ))}
+          </div>
+        </div>
       </aside>
     </div>
   )
