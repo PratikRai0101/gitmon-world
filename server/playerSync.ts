@@ -132,8 +132,20 @@ io.on('connection', (socket: Socket) => {
       } catch (err: any) {
         console.error('identify error', err)
         socket.emit('player:stats:error', { message: String(err) })
-      }
-    })
+    }
+  })
+
+  // Admin: request the full plots table for inspector view
+  socket.on('admin:requestPlots', async () => {
+    try {
+      const res = await pool.query('SELECT id, owner_username, x, y, building_type, top_language, last_updated FROM plots')
+      // send rows back to requester
+      socket.emit('admin:allPlots', res.rows)
+    } catch (err: any) {
+      console.error('admin:requestPlots error', err)
+      socket.emit('admin:allPlots:error', { message: String(err) })
+    }
+  })
   // NOTE: test-identify hook removed — use 'player:identify' with a mock or GitHub username for testing
 })
 

@@ -54,6 +54,8 @@ export default function MapViewer({ plots }: { plots: Plot[] }) {
 
     socket.on('connect', () => {
       pushFeed(`Admin connected to live updates (socket ${socket.id})`)
+      // request current plots state from server
+      socket.emit('admin:requestPlots')
     })
 
     // when a player identifies / server assigns a plot it emits player:stats
@@ -80,8 +82,10 @@ export default function MapViewer({ plots }: { plots: Plot[] }) {
           return [newPlot, ...prev]
         })
 
-        // animate the plot briefly
-        setAnimating((a) => ({ ...a, [username?.toString().length ?? Math.random() * 1000]: true }))
+        // animate the plot briefly and highlight
+        const key = nextAnimKey()
+        setAnimating((a) => ({ ...a, [key]: true }))
+        setTimeout(() => setAnimating((a) => { const copy = { ...a }; delete copy[key]; return copy }), 3000)
         pushFeed(`${username} spawned a ${top_language ?? 'Unknown'} ${building_type} at [${x}, ${y}]`)
       } catch (e) {
         console.warn('player:stats handler error', e)
@@ -93,11 +97,28 @@ export default function MapViewer({ plots }: { plots: Plot[] }) {
       pushFeed(`${username} started identify flow`)
     })
 
+    // full state sync from server
+    socket.on('admin:allPlots', (rows: any[]) => {
+      // map DB rows into Plot shape
+      const mapped: Plot[] = (rows || []).map((r, i) => ({ id: r.id ?? i + 1, owner_username: r.owner_username, x: r.x, y: r.y, building_type: r.building_type, top_language: r.top_language, totalCommits: r.totalcommits ?? null, last_updated: r.last_updated }))
+      setPlotsState(mapped)
+      pushFeed(`Received ${mapped.length} plots from server`)
+    })
+
+    socket.on('admin:allPlots:error', (err: any) => {
+      pushFeed(`admin:allPlots:error ${err?.message ?? String(err)}`)
+    })
+
     return () => {
       socket.disconnect()
       socketRef.current = null
     }
   }, [])
+
+  // small helper for animation keys
+  function nextAnimKey() {
+    return Math.floor(Math.random() * 1000000)
+  }
 
   // wheel to zoom
   function onWheel(e: React.WheelEvent) {
@@ -189,7 +210,7 @@ export default function MapViewer({ plots }: { plots: Plot[] }) {
               const py = p.y * tileSize
               return (
                 <g key={p.id} transform={`translate(${px},${py})`}>
-                  <g style={{ transformOrigin: '0 0', transition: 'transform 400ms ease, opacity 400ms ease', transform: animating[p.id] ? 'scale(0.85)' : 'scale(1)', opacity: animating[p.id] ? 0.0 : 1 }}>
+                  <g style={{ transformOrigin: '0 0', transition: 'transform 300ms ease, opacity 300ms ease, filter 300ms ease', transform: animating[p.id] ? 'scale(1.08)' : 'scale(1)', opacity: 1, filter: animating[p.id] ? 'drop-shadow(0 0 8px rgba(255,255,255,0.9))' : 'none' }}>
                     <rect x={0} y={0} width={size * tileSize} height={size * tileSize} fill={color} stroke="#000" strokeWidth={1} />
                   </g>
                 </g>
