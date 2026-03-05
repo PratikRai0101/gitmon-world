@@ -26,6 +26,21 @@ export default function Game() {
     }
 
     const game = new Phaser.Game(config)
+    // ensure canvas can receive keyboard focus so Phaser input works even when embedded
+    const tryFocusCanvas = () => {
+      try {
+        const canvas = ref.current?.querySelector('canvas') as HTMLCanvasElement | null
+        if (canvas) {
+          canvas.tabIndex = 0
+          canvas.style.outline = 'none'
+          canvas.addEventListener('click', () => canvas.focus())
+          // focus once to capture keyboard events
+          canvas.focus()
+        }
+      } catch (e) {}
+    }
+    // try after a short delay to allow Phaser to create the canvas
+    setTimeout(tryFocusCanvas, 250)
     // once scene starts, send identify via PlayerSync if username provided
     game.events.on('ready', () => {
       try {
