@@ -55,23 +55,26 @@ export default class TownScene extends Phaser.Scene {
     playerLabel.setDepth(11)
     ;(this as any).localPlayerLabel = playerLabel
     this.cursors = this.input.keyboard.createCursorKeys()
-    this.sync = new PlayerSync(this, 'http://localhost:4000')
-    // spawn houses when players init or join
-    this.sync.scene.events.on('players:init', (states: any[]) => this.spawnPlayerHouses(states))
-    this.sync.scene.events.on('player:joined', ({ id }: { id: string }) => this.spawnPlayerHouses(this.sync.getKnownPlayers()))
-    this.sync.scene.events.on('player:stats', (payload: any) => {
-      // when stats arrive for a player, rebuild houses
-      this.spawnPlayerHouses(this.sync.getKnownPlayers())
-      // also update local player label position
-      const lbl = (this as any).localPlayerLabel
-      const pg = (this as any).playerGraphic
-      if (lbl && this.player) {
-        lbl.setPosition(this.player.x, this.player.y - 14)
-      }
-      if (pg && this.player) {
-        pg.setPosition(this.player.x, this.player.y)
-      }
-    })
+    // Defer PlayerSync creation slightly to avoid socket events arriving before the scene is fully initialized
+    setTimeout(() => {
+      this.sync = new PlayerSync(this, 'http://localhost:4000')
+      // spawn houses when players init or join
+      this.sync.scene.events.on('players:init', (states: any[]) => this.spawnPlayerHouses(states))
+      this.sync.scene.events.on('player:joined', ({ id }: { id: string }) => this.spawnPlayerHouses(this.sync.getKnownPlayers()))
+      this.sync.scene.events.on('player:stats', (payload: any) => {
+        // when stats arrive for a player, rebuild houses
+        this.spawnPlayerHouses(this.sync.getKnownPlayers())
+        // also update local player label position
+        const lbl = (this as any).localPlayerLabel
+        const pg = (this as any).playerGraphic
+        if (lbl && this.player) {
+          lbl.setPosition(this.player.x, this.player.y - 14)
+        }
+        if (pg && this.player) {
+          pg.setPosition(this.player.x, this.player.y)
+        }
+      })
+    }, 120)
     this.sync.scene.events.on('player:stats:error', (err: any) => console.warn('player stats error', err))
     // listen for proximity checks to show/hide interaction prompt
     this.events.on('player:checkProximity', ({ hasPlot, plot }: any) => {
