@@ -85,6 +85,8 @@ io.on('connection', (socket: Socket) => {
     console.log('disconnect', id)
     players.delete(id)
     io.emit('player:left', { id })
+    // broadcast status change
+    io.emit('player:status_change', { id, status: 'offline' })
   })
 
   // Handle identification: client sends GitHub username to fetch stats
@@ -128,6 +130,8 @@ io.on('connection', (socket: Socket) => {
         players.set(id, { ...existing, ...playerState })
         // broadcast the stats and assigned plot to all clients
         io.emit('player:stats', { id, username, stats, x: playerState.x, y: playerState.y })
+        // broadcast status change (online)
+        io.emit('player:status_change', { id, username, status: 'online' })
         console.log('identified', id, username, stats, 'plot:', playerState.x, playerState.y)
       } catch (err: any) {
         console.error('identify error', err)
