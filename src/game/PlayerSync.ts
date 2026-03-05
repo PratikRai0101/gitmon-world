@@ -68,10 +68,22 @@ export class PlayerSync {
         this.remotePlayers.delete(id)
       }
     })
+
+    // bind scene identify bridge
+    this.bindSceneIdentify()
   }
 
   identify(username: string) {
     this.socket.emit('player:identify', { username })
+  }
+
+  // listen for client identify events from scene (bridge)
+  private bindSceneIdentify() {
+    try {
+      this.scene.events.on('client:identify', (username: string) => {
+        this.identify(username)
+      })
+    } catch (e) {}
   }
 
   // return a snapshot of known players with tile coords
