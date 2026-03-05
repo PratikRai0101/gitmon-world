@@ -104,15 +104,16 @@ export class PlayerSync {
     let rp = this.remotePlayers.get(id)
     if (!rp) {
       // If scene.add is not yet available (socket events can fire early), queue the creation and retry
-      if (!this.scene || !(this.scene as any).add) {
+      const addApi = (this.scene as any)?.add
+      if (!addApi || typeof addApi.container !== 'function' || typeof addApi.graphics !== 'function') {
         this.pendingCreates.push({ id, x, y, ts })
         setTimeout(() => this.flushPendingCreates(), 100)
         return
       }
       // create a simple graphics-backed container for remote players (avoids relying on external textures)
       try {
-        const container = (this.scene as any).add.container(x, y)
-        const g = (this.scene as any).add.graphics()
+        const container = addApi.container(x, y)
+        const g = addApi.graphics()
         const playerColor = Phaser.Display.Color.HexStringToColor('#3498db').color
         g.fillStyle(playerColor, 1)
         g.fillRect(-12, -12, 24, 24)
