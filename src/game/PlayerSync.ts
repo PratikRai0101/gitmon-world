@@ -36,6 +36,14 @@ export class PlayerSync {
       try { this.scene.events.emit('player:joined', { id }) } catch (e) {}
     })
 
+    this.socket.on('player:stats', (payload: { id: string; username: string; stats: any }) => {
+      try { this.scene.events.emit('player:stats', payload) } catch (e) {}
+    })
+
+    this.socket.on('player:stats:error', (err: any) => {
+      try { this.scene.events.emit('player:stats:error', err) } catch (e) {}
+    })
+
     // other clients may announce a move intent
     this.socket.on('player:move', (state: { id: string; x: number; y: number; tileX?: number; tileY?: number; timestamp: number }) => {
       if (state.id === this.localId) return
@@ -60,6 +68,10 @@ export class PlayerSync {
         this.remotePlayers.delete(id)
       }
     })
+  }
+
+  identify(username: string) {
+    this.socket.emit('player:identify', { username })
   }
 
   // return a snapshot of known players with tile coords

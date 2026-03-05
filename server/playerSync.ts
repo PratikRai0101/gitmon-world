@@ -1,6 +1,7 @@
 import http from 'http'
 import express from 'express'
 import { Server as IOServer, Socket } from 'socket.io'
+import { fetchGitStats } from './github'
 
 type PlayerState = {
   id: string
@@ -10,6 +11,8 @@ type PlayerState = {
   tileY?: number
   dir?: string
   timestamp: number
+  username?: string
+  stats?: { totalCommits: number; topLanguage?: string; stars: number }
 }
 
 const app = express()
@@ -47,6 +50,22 @@ io.on('connection', (socket: Socket) => {
     console.log('disconnect', id)
     players.delete(id)
     io.emit('player:left', { id })
+  })
+
+  // Handle identification: client sends GitHub username to fetch stats
+  socket.on('player:identify', async ({ username }: { username: string }) => {
+    try {
+      const stats = await fetchGitStats(username)
+      const existing = players.get(id) || ({} as PlayerState)
+      const playerState: PlayerState = { id, x: existing.x || 0, y: existing.y || 0, timestamp: Date.now(), username, stats }
+      players.set(id, { ...existing, ...playerState })
+      // broadcast the stats to all clients
+      io.emit('player:stats', { id, username, stats })
+      console.log('identified', id, username, stats)
+    } catch (err: any) {
+      console.error('identify error', err)
+      socket.emit('player:stats:error', { message: String(err) })
+    }
   })
 })
 

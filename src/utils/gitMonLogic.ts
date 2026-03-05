@@ -14,10 +14,10 @@ export type BuildingConfig = {
 export function mapLanguageToColor(lang?: string) {
   if (!lang) return 'gray'
   const key = lang.toLowerCase()
-  if (key.includes('javascript')) return 'yellow'
-  if (key.includes('python')) return 'green'
-  if (key.includes('rust')) return 'orange'
-  return 'gray'
+  if (key.includes('javascript')) return '#FFD43B'
+  if (key.includes('python')) return '#2ECC71'
+  if (key.includes('rust')) return '#DE6A31'
+  return '#888888'
 }
 
 export default function gitMonLogic(stats: GitStats): BuildingConfig {

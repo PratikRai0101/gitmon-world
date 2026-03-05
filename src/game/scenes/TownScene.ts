@@ -31,6 +31,11 @@ export default class TownScene extends Phaser.Scene {
     // spawn houses when players init or join
     this.sync.scene.events.on('players:init', (states: any[]) => this.spawnPlayerHouses(states, obstacles))
     this.sync.scene.events.on('player:joined', ({ id }: { id: string }) => this.spawnPlayerHouses(this.sync.getKnownPlayers(), obstacles))
+    this.sync.scene.events.on('player:stats', (payload: any) => {
+      // when stats arrive for a player, rebuild houses
+      this.spawnPlayerHouses(this.sync.getKnownPlayers(), obstacles)
+    })
+    this.sync.scene.events.on('player:stats:error', (err: any) => console.warn('player stats error', err))
     // initial spawn from known players
     this.spawnPlayerHouses(this.sync.getKnownPlayers(), obstacles)
     // wire a PlayerController for grid movement
@@ -41,23 +46,51 @@ export default class TownScene extends Phaser.Scene {
   // Place buildings based on connected players and mark occupied tiles on obstacles layer
   spawnPlayerHouses(players: Array<any>, obstaclesLayer: any) {
     if (!players || !obstaclesLayer) return
-    // clear previous building tiles in obstacles
+    // clear previous building tiles in obstacles and remove any existing graphics/labels
     obstaclesLayer.fill(-1)
+    if ((this as any).buildingGraphics) {
+      (this as any).buildingGraphics.forEach((g: any) => g.destroy())
+    }
+    (this as any).buildingGraphics = []
+
     players.forEach((p, idx) => {
-      // for demo, create fake stats; in real use fetch per-player stats
-      const stats = { totalCommits: (idx + 1) * 120, topLanguage: idx % 2 === 0 ? 'JavaScript' : 'Python', stars: 0 }
+      // determine stats: prefer p.stats if present (emitted by server), else fallback
+      const stats = p.stats || p.stats === 0 ? p.stats : { totalCommits: (idx + 1) * 120, topLanguage: idx % 2 === 0 ? 'JavaScript' : 'Python', stars: 0 }
       // lazy import to avoid circular
       // @ts-ignore
       const gitMonLogic = require('../../utils/gitMonLogic').default
       const cfg = gitMonLogic(stats)
-      const tileX = p.tileX || Math.round(p.x / 32)
-      const tileY = p.tileY || Math.round(p.y / 32)
-      // render building as filled tiles in ground layer (for now, use obstacles layer)
+      const tileX = p.tileX || Math.round((p.x || 0) / 32)
+      const tileY = p.tileY || Math.round((p.y || 0) / 32)
+
+      // mark occupied tiles in obstacles layer
       for (let ox = 0; ox < cfg.width; ox++) {
         for (let oy = 0; oy < cfg.height; oy++) {
           obstaclesLayer.putTileAt(1, tileX + ox, tileY + oy)
         }
       }
+
+      // world coordinates
+      const worldX = tileX * 32
+      const worldY = tileY * 32
+
+      // draw roof with colored fill and 1px black border
+      const g = this.add.graphics()
+      g.fillStyle(Phaser.Display.Color.HexStringToColor(cfg.roofColor).color, 1)
+      g.fillRect(worldX, worldY, cfg.width * 32, cfg.height * 32)
+      g.lineStyle(1, 0x000000, 1)
+      g.strokeRect(worldX, worldY, cfg.width * 32, cfg.height * 32)
+      g.setDepth(5)
+      ;(this as any).buildingGraphics.push(g)
+
+      // username label
+      const username = p.username || `player-${p.id?.slice(0, 4)}`
+      const label = this.add.text(worldX + (cfg.width * 16), worldY - 6, username, {
+        font: '12px monospace', color: '#ffffff', backgroundColor: 'rgba(0,0,0,0.5)', padding: { x: 4, y: 2 }
+      })
+      label.setOrigin(0.5, 1)
+      label.setDepth(6)
+      ;(this as any).buildingGraphics.push(label)
     })
   }
 
