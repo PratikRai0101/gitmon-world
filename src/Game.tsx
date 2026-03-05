@@ -1,3 +1,4 @@
+"use client"
 import React, { useEffect, useRef } from 'react'
 import Phaser from 'phaser'
 import TownScene from './game/scenes/TownScene'

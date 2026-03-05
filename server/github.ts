@@ -1,4 +1,10 @@
-import fetch from 'node-fetch'
+// node 18+ has global fetch; fall back to node-fetch if not present
+let fetcher: any = (global as any).fetch
+try {
+  if (!fetcher) fetcher = require('node-fetch')
+} catch (e) {}
+
+const fetch = fetcher
 
 const GQL = 'https://api.github.com/graphql'
 const TOKEN = process.env.GITHUB_TOKEN
