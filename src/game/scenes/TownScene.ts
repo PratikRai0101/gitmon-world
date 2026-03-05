@@ -36,11 +36,20 @@ export default class TownScene extends Phaser.Scene {
     }
     grid.setDepth(0)
 
-    // create player sprite with 1px black outline effect via a graphics-backed rectangle under the sprite
+    // create player as a filled rectangle (blue tint) with 1px black outline to match GBA sticker style
+    const playerGraphics = this.add.graphics()
+    const playerColor = Phaser.Display.Color.HexStringToColor('#3498db').color
+    playerGraphics.fillStyle(playerColor, 1)
+    playerGraphics.fillRect(100 - 12, 100 - 12, 24, 24)
+    playerGraphics.lineStyle(1, 0x000000, 1)
+    playerGraphics.strokeRect(100 - 12, 100 - 12, 24, 24)
+    playerGraphics.setDepth(10)
     this.player = this.add.sprite(100, 100, 'player-32')
-    this.player.setDepth(10)
-    // floating label for local player
-    const playerLabel = this.add.text(this.player.x, this.player.y - 10, 'You', { font: '12px monospace', color: '#ffffff', backgroundColor: 'rgba(0,0,0,0.6)', padding: { x: 6, y: 3 } })
+    this.player.setVisible(false)
+    // attach graphics as an interactive display object for positioning
+    ;(this as any).playerGraphic = playerGraphics
+    // floating label for local player (monospace, semi-transparent bg)
+    const playerLabel = this.add.text(100, 100 - 14, 'You', { font: '12px monospace', color: '#ffffff', backgroundColor: 'rgba(0,0,0,0.6)', padding: { x: 6, y: 3 } })
     playerLabel.setOrigin(0.5, 1)
     playerLabel.setDepth(11)
     ;(this as any).localPlayerLabel = playerLabel
@@ -54,8 +63,12 @@ export default class TownScene extends Phaser.Scene {
       this.spawnPlayerHouses(this.sync.getKnownPlayers())
       // also update local player label position
       const lbl = (this as any).localPlayerLabel
+      const pg = (this as any).playerGraphic
       if (lbl && this.player) {
-        lbl.setPosition(this.player.x, this.player.y - 10)
+        lbl.setPosition(this.player.x, this.player.y - 14)
+      }
+      if (pg && this.player) {
+        pg.setPosition(this.player.x, this.player.y)
       }
     })
     this.sync.scene.events.on('player:stats:error', (err: any) => console.warn('player stats error', err))
@@ -105,6 +118,26 @@ export default class TownScene extends Phaser.Scene {
       g.fillRect(worldX, worldY, cfg.width * 32, cfg.height * 32)
       g.lineStyle(1, 0x000000, 1)
       g.strokeRect(worldX, worldY, cfg.width * 32, cfg.height * 32)
+
+      // add door (dark brown) centered at bottom
+      const doorW = Math.max(8, Math.floor((cfg.width * 32) / 4))
+      const doorH = Math.max(10, Math.floor((cfg.height * 32) / 6))
+      const doorX = worldX + (cfg.width * 32) / 2 - doorW / 2
+      const doorY = worldY + cfg.height * 32 - doorH - 4
+      g.fillStyle(Phaser.Display.Color.HexStringToColor('#5c3a21').color, 1)
+      g.fillRect(doorX, doorY, doorW, doorH)
+      g.lineStyle(1, 0x000000, 1)
+      g.strokeRect(doorX, doorY, doorW, doorH)
+
+      // add window (light blue) top-left area
+      const winSize = Math.min(12, Math.floor((cfg.width * 32) / 4))
+      const winX = worldX + 6
+      const winY = worldY + 6
+      g.fillStyle(Phaser.Display.Color.HexStringToColor('#bfe9ff').color, 1)
+      g.fillRect(winX, winY, winSize, winSize)
+      g.lineStyle(1, 0x000000, 1)
+      g.strokeRect(winX, winY, winSize, winSize)
+
       g.setDepth(5)
       ;(this as any).buildingGraphics.push(g)
 
