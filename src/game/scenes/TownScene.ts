@@ -17,37 +17,32 @@ export default class TownScene extends Phaser.Scene {
   }
 
   create() {
-    // create a simple tilemap 50x50, tileSize 32
-    const map = this.make.tilemap({ tileWidth: 32, tileHeight: 32, width: 50, height: 50 })
-    const tileset = map.addTilesetImage('tiles')
-    const ground = map.createBlankLayer('Ground', tileset)
-    const obstacles = map.createBlankLayer('Obstacles', tileset)
-    // store map reference for controller collision checks
-    ;(this as any).map = map
+    // simple obstacle grid for collision checks (tracks occupied tiles as "x,y")
+    ;(this as any).obstacleGrid = new Set<string>()
 
     this.player = this.add.sprite(100, 100, 'player-32')
     this.cursors = this.input.keyboard.createCursorKeys()
     this.sync = new PlayerSync(this, 'http://localhost:4000')
     // spawn houses when players init or join
-    this.sync.scene.events.on('players:init', (states: any[]) => this.spawnPlayerHouses(states, obstacles))
-    this.sync.scene.events.on('player:joined', ({ id }: { id: string }) => this.spawnPlayerHouses(this.sync.getKnownPlayers(), obstacles))
+    this.sync.scene.events.on('players:init', (states: any[]) => this.spawnPlayerHouses(states))
+    this.sync.scene.events.on('player:joined', ({ id }: { id: string }) => this.spawnPlayerHouses(this.sync.getKnownPlayers()))
     this.sync.scene.events.on('player:stats', (payload: any) => {
       // when stats arrive for a player, rebuild houses
-      this.spawnPlayerHouses(this.sync.getKnownPlayers(), obstacles)
+      this.spawnPlayerHouses(this.sync.getKnownPlayers())
     })
     this.sync.scene.events.on('player:stats:error', (err: any) => console.warn('player stats error', err))
     // initial spawn from known players
-    this.spawnPlayerHouses(this.sync.getKnownPlayers(), obstacles)
+    this.spawnPlayerHouses(this.sync.getKnownPlayers())
     // wire a PlayerController for grid movement
     // @ts-ignore
     this.playerController = new (require('../PlayerController').default)(this, this.player, this.sync)
   }
 
   // Place buildings based on connected players and mark occupied tiles on obstacles layer
-  spawnPlayerHouses(players: Array<any>, obstaclesLayer: any) {
-    if (!players || !obstaclesLayer) return
-    // clear previous building tiles in obstacles and remove any existing graphics/labels
-    obstaclesLayer.fill(-1)
+  spawnPlayerHouses(players: Array<any>) {
+    if (!players) return
+    // clear previous building occupancy and remove any existing graphics/labels
+    ;(this as any).obstacleGrid.clear()
     if ((this as any).buildingGraphics) {
       (this as any).buildingGraphics.forEach((g: any) => g.destroy())
     }
@@ -63,10 +58,10 @@ export default class TownScene extends Phaser.Scene {
       const tileX = p.tileX || Math.round((p.x || 0) / 32)
       const tileY = p.tileY || Math.round((p.y || 0) / 32)
 
-      // mark occupied tiles in obstacles layer
+      // mark occupied tiles in obstacleGrid set
       for (let ox = 0; ox < cfg.width; ox++) {
         for (let oy = 0; oy < cfg.height; oy++) {
-          obstaclesLayer.putTileAt(1, tileX + ox, tileY + oy)
+          ;(this as any).obstacleGrid.add(`${tileX + ox},${tileY + oy}`)
         }
       }
 

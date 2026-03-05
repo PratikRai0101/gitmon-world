@@ -61,16 +61,12 @@ export default class PlayerController {
       const nextTileX = currentTileX + dirX
       const nextTileY = currentTileY + dirY
       // check collision via tile layer (if provided by scene)
-      const map: any = (this.scene as any).map
-      const obstacles: any = map ? map.getLayer('Obstacles')?.tilemapLayer : null
-      if (obstacles) {
-        const tile = obstacles.getTileAt(nextTileX, nextTileY)
-        if (tile && tile.index !== -1) {
-          // bump into wall — play a short bump animation or sound later
-          this.moving = false
-          return
-        }
-      }
+    const obstacleGrid: Set<string> = (this.scene as any).obstacleGrid
+    if (obstacleGrid && obstacleGrid.has(`${nextTileX},${nextTileY}`)) {
+      // bump into wall — play a short bump animation or sound later
+      this.moving = false
+      return
+    }
       this.targetX = nextTileX * 32
       this.targetY = nextTileY * 32
       this.moving = true
