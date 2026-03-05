@@ -11,9 +11,7 @@ export default class TownScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('player-32', '/assets/placeholder-player-32.png')
-    // tileset for buildings and map (placeholder single-tile)
-    this.load.image('tiles', '/assets/tiles.png')
+    // using graphics for player and simple visuals; skip external image loads to avoid asset errors
   }
 
   create() {
@@ -37,17 +35,19 @@ export default class TownScene extends Phaser.Scene {
     }
     grid.setDepth(0)
 
-    // create player as a filled rectangle (blue tint) with 1px black outline to match GBA sticker style
+    // create player as a container holding graphics (avoid external sprite)
+    const playerContainer = this.add.container(100, 100)
     const playerGraphics = this.add.graphics()
     const playerColor = Phaser.Display.Color.HexStringToColor('#3498db').color
     playerGraphics.fillStyle(playerColor, 1)
-    playerGraphics.fillRect(100 - 12, 100 - 12, 24, 24)
+    // draw relative to container origin
+    playerGraphics.fillRect(-12, -12, 24, 24)
     playerGraphics.lineStyle(1, 0x000000, 1)
-    playerGraphics.strokeRect(100 - 12, 100 - 12, 24, 24)
+    playerGraphics.strokeRect(-12, -12, 24, 24)
     playerGraphics.setDepth(10)
-    this.player = this.add.sprite(100, 100, 'player-32')
-    this.player.setVisible(false)
-    // attach graphics as an interactive display object for positioning
+    playerContainer.add(playerGraphics)
+    playerContainer.setDepth(10)
+    this.player = playerContainer as any
     ;(this as any).playerGraphic = playerGraphics
     // floating label for local player (monospace, semi-transparent bg)
     const playerLabel = this.add.text(100, 100 - 14, 'You', { font: '12px monospace', color: '#ffffff', backgroundColor: 'rgba(0,0,0,0.6)', padding: { x: 6, y: 3 } })

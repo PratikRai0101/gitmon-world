@@ -10,12 +10,15 @@ export default class PlayerController {
   targetY = 0
   speed = 160 // pixels per second
   sync: PlayerSync
+  inspectKey: Phaser.Input.Keyboard.Key | null = null
 
   constructor(scene: Phaser.Scene, sprite: Phaser.GameObjects.Sprite, sync: PlayerSync) {
     this.scene = scene
     this.sprite = sprite
     this.cursors = scene.input.keyboard.createCursorKeys()
     this.sync = sync
+    // create inspect key once
+    try { this.inspectKey = scene.input.keyboard.addKey('E') } catch (e) { this.inspectKey = null }
     // initialize tile-aligned position
     this.sprite.x = Math.round(this.sprite.x / 32) * 32
     this.sprite.y = Math.round(this.sprite.y / 32) * 32
@@ -86,8 +89,7 @@ export default class PlayerController {
       }, 220)
     }
     // handle Inspect key (E)
-    const inspectKey = this.scene.input.keyboard.addKey('E')
-    if (Phaser.Input.Keyboard.JustDown(inspectKey)) {
+    if (this.inspectKey && Phaser.Input.Keyboard.JustDown(this.inspectKey)) {
       try {
         const scene: any = this.scene
         const nearest = scene.nearestPlot
