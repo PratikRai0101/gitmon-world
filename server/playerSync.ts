@@ -67,6 +67,22 @@ io.on('connection', (socket: Socket) => {
       socket.emit('player:stats:error', { message: String(err) })
     }
   })
+
+  // TEST: allow emitting a test-identify event to bypass GitHub API for quick local testing
+  socket.on('test-identify', async () => {
+    try {
+      const username = 'raijinnn0101'
+      const stats = { totalCommits: 750, topLanguage: 'Python', stars: 0 }
+      const existing = players.get(id) || ({} as PlayerState)
+      const playerState: PlayerState = { id, x: existing.x || 0, y: existing.y || 0, timestamp: Date.now(), username, stats }
+      players.set(id, { ...existing, ...playerState })
+      io.emit('player:stats', { id, username, stats })
+      console.log('test-identify broadcast for', id, username, stats)
+    } catch (err: any) {
+      console.error('test-identify error', err)
+      socket.emit('player:stats:error', { message: String(err) })
+    }
+  })
 })
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 4000
