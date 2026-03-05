@@ -19,6 +19,7 @@ export default class TownScene extends Phaser.Scene {
   create() {
     // simple obstacle grid for collision checks (tracks occupied tiles as "x,y")
     ;(this as any).obstacleGrid = new Set<string>()
+    ;(this as any).plotByTile = new Map<string, any>()
 
     // classic GBA grass background
     this.cameras.main.setBackgroundColor('#4d8a32')
@@ -72,11 +73,38 @@ export default class TownScene extends Phaser.Scene {
       }
     })
     this.sync.scene.events.on('player:stats:error', (err: any) => console.warn('player stats error', err))
+    // listen for proximity checks to show/hide interaction prompt
+    this.events.on('player:checkProximity', ({ hasPlot, plot }: any) => {
+      if (hasPlot) {
+        // show a small 'Press E to Inspect' prompt
+        if (!(this as any).inspectPrompt) {
+          const txt = this.add.text(400, 40, 'Press E to Inspect', { font: '14px monospace', color: '#fff', backgroundColor: 'rgba(0,0,0,0.7)', padding: { x: 6, y: 4 } })
+          txt.setOrigin(0.5, 0)
+          txt.setDepth(50)
+          ;(this as any).inspectPrompt = txt
+        }
+      } else {
+        if ((this as any).inspectPrompt) {
+          ;(this as any).inspectPrompt.destroy()
+          ;(this as any).inspectPrompt = null
+        }
+      }
+      ;(this as any).nearestPlot = plot
+    })
     // initial spawn from known players
     this.spawnPlayerHouses(this.sync.getKnownPlayers())
     // wire a PlayerController for grid movement
     // @ts-ignore
     this.playerController = new (require('../PlayerController').default)(this, this.player, this.sync)
+
+    // react overlay integration: show trainer card when inspection happens
+    this.events.on('player:inspect', async (plot: any) => {
+      try {
+        // emit a window-level custom event so React can listen and show HUD
+        const ev = new CustomEvent('gitmon:inspect', { detail: plot })
+        window.dispatchEvent(ev)
+      } catch (e) {}
+    })
   }
 
   // Place buildings based on connected players and mark occupied tiles on obstacles layer

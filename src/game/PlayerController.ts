@@ -29,7 +29,7 @@ export default class PlayerController {
       const dx = this.targetX - this.sprite.x
       const dy = this.targetY - this.sprite.y
       const dist = Math.sqrt(dx * dx + dy * dy)
-      if (dist < 1) {
+        if (dist < 1) {
         // snap to target
         this.sprite.x = this.targetX
         this.sprite.y = this.targetY
@@ -38,7 +38,7 @@ export default class PlayerController {
         const tileX = Math.round(this.sprite.x / 32)
         const tileY = Math.round(this.sprite.y / 32)
         this.sync.emitMove(tileX, tileY, this.sprite.x, this.sprite.y)
-      } else {
+        } else {
         const step = (this.speed * delta) / 1000
         this.sprite.x += (dx / dist) * Math.min(step, dist)
         this.sprite.y += (dy / dist) * Math.min(step, dist)
@@ -72,6 +72,30 @@ export default class PlayerController {
       this.moving = true
       // send intention/target so others see the smooth movement
       this.sync.emitMove(nextTileX, nextTileY, this.targetX, this.targetY)
+      // after starting movement, check adjacency for interaction hint
+      setTimeout(() => {
+        try {
+          const scene: any = this.scene
+          const plotMap: Map<string, any> = scene.plotByTile
+          const facingTileKey = `${nextTileX + dirX},${nextTileY + dirY}`
+          const adjacentKey = `${nextTileX},${nextTileY}`
+          // player is now on nextTileX,nextTileY; check adjacent tiles in facing direction
+          const plot = plotMap ? plotMap.get(facingTileKey) || plotMap.get(adjacentKey) : null
+          scene.events.emit('player:checkProximity', { hasPlot: !!plot, plot })
+        } catch (e) {}
+      }, 220)
+    }
+    // handle Inspect key (E)
+    const inspectKey = this.scene.input.keyboard.addKey('E')
+    if (Phaser.Input.Keyboard.JustDown(inspectKey)) {
+      try {
+        const scene: any = this.scene
+        const nearest = scene.nearestPlot
+        if (nearest) {
+          // trigger an event that React overlay can listen to (scene.events)
+          scene.events.emit('player:inspect', nearest)
+        }
+      } catch (e) {}
     }
   }
 }
